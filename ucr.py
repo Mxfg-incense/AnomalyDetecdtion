@@ -23,6 +23,7 @@ import torch
 import numpy
 import pandas
 import argparse
+import time 
 
 import scikit_wrappers
 
@@ -37,12 +38,12 @@ def load_UCR_dataset(path, dataset):
     @return Quadruplet containing the training set, the corresponding training
             labels, the testing set and the corresponding testing labels.
     """
-    train_file = os.path.join(path, dataset, dataset + "_TRAIN.tsv")
-    test_file = os.path.join(path, dataset, dataset + "_TEST.tsv")
-    train_df = pandas.read_csv(train_file, sep='\t', header=None)
-    test_df = pandas.read_csv(test_file, sep='\t', header=None)
+    train_file = os.path.join(path, dataset + "_train.txt")
+    test_file = os.path.join(path, dataset + "_test.txt")
+    train_df = pandas.read_csv(train_file, sep=' ', header=None)
+    test_df = pandas.read_csv(test_file, sep=' ', header=None)
     train_array = numpy.array(train_df)
-    test_array = numpy.array(test_df)
+    test_array = numpy.array(test_df) 
 
     # Move the labels to {0, ..., L-1}
     labels = numpy.unique(train_array[:, 0])
@@ -140,7 +141,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Classification tests for UCR repository datasets'
     )
-    parser.add_argument('--dataset', type=str, metavar='D', required=True,
+    parser.add_argument('--dataset', type=str, metavar='D', required=False, default="Adiac",
                         help='dataset name')
     parser.add_argument('--path', type=str, metavar='PATH', required=True,
                         help='path where the dataset is located')
@@ -159,11 +160,11 @@ def parse_arguments():
     parser.add_argument('--fit_classifier', action='store_true', default=False,
                         help='if not supervised, activate to load the ' +
                              'model and retrain the classifier')
-
     return parser.parse_args()
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     args = parse_arguments()
     if args.cuda and not torch.cuda.is_available():
         print("CUDA is not available, proceeding without it...")
@@ -204,3 +205,5 @@ if __name__ == '__main__':
             json.dump(classifier.get_params(), fp)
 
     print("Test accuracy: " + str(classifier.score(test, test_labels)))
+    end_time = time.time()  
+    print("Time: " + str(end_time - start_time))

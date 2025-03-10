@@ -27,6 +27,7 @@ import sklearn.model_selection
 import utils
 import losses
 import networks
+import joblib
 
 
 class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
@@ -110,7 +111,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                '$(prefix_file)_$(architecture)_encoder.pth').
         """
         self.save_encoder(prefix_file)
-        sklearn.externals.joblib.dump(
+        joblib.dump(
             self.classifier,
             prefix_file + '_' + self.architecture + '_classifier.pkl'
         )
@@ -142,7 +143,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                and '$(prefix_file)_$(architecture)_encoder.pth').
         """
         self.load_encoder(prefix_file)
-        self.classifier = sklearn.externals.joblib.load(
+        self.classifier = joblib.load(
             prefix_file + '_' + self.architecture + '_classifier.pkl'
         )
 
@@ -192,7 +193,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                     'decision_function_shape': ['ovr'],
                     'random_state': [None]
                 },
-                cv=5, iid=False, n_jobs=5
+                cv=5, n_jobs=5
             )
             if train_size <= 10000:
                 grid_search.fit(features, y)
@@ -246,26 +247,36 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
         found_best = False
 
         # Encoder training
+        print('Training encoder...')
+        i = 0  # 初始化步骤计数器
+        epochs = 0  # 初始化 epoch 计数器
+
         while i < self.nb_steps:
             if verbose:
-                print('Epoch: ', epochs + 1)
-            for batch in train_generator:
+                print(f'\nEpoch: {epochs + 1}')
+            
+            for batch_idx, batch in enumerate(train_generator):
                 if self.cuda:
                     batch = batch.cuda(self.gpu)
+                
                 self.optimizer.zero_grad()
+                
                 if not varying:
-                    loss = self.loss(
-                        batch, self.encoder, train, save_memory=save_memory
-                    )
+                    loss = self.loss(batch, self.encoder, train, save_memory=save_memory)
                 else:
-                    loss = self.loss_varying(
-                        batch, self.encoder, train, save_memory=save_memory
-                    )
+                    loss = self.loss_varying(batch, self.encoder, train, save_memory=save_memory)
+                
                 loss.backward()
                 self.optimizer.step()
                 i += 1
+                
+                if verbose:
+                    print(f'Step: {i}/{self.nb_steps}, Loss: {loss.item():.1f}, Batch: {batch_idx + 1}/{len(train_generator)}')
+                
                 if i >= self.nb_steps:
                     break
+            
+            # 更新 epoch 计数器
             epochs += 1
             # Early stopping strategy
             if self.early_stopping is not None and y is not None and (
@@ -290,6 +301,7 @@ class TimeSeriesEncoderClassifier(sklearn.base.BaseEstimator,
                         best_encoder.cuda(self.gpu)
                     best_encoder.load_state_dict(self.encoder.state_dict())
             if count == self.early_stopping:
+                print('Early stopping...')
                 break
 
         # If a better model was found, use it
@@ -470,7 +482,7 @@ class CausalCNNEncoderClassifier(TimeSeriesEncoderClassifier):
     @param gpu GPU index to use, if CUDA is enabled.
     """
     def __init__(self, compared_length=50, nb_random_samples=10,
-                 negative_penalty=1, batch_size=1, nb_steps=2000, lr=0.001,
+                 negative_penalty=1, batch_size=1, nb_steps=20, lr=0.001,
                  penalty=1, early_stopping=None, channels=10, depth=1,
                  reduced_size=10, out_channels=10, kernel_size=4,
                  in_channels=1, cuda=False, gpu=0):

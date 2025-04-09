@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>异常检测 - 训练</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a href="/train" class="active">训练</a> | 
+            <a href="/predict">预测</a>
+        </div>
+        
+        <h1>异常检测训练接口</h1>
+        
+        <div class="form-group">
+            <label for="example-select">选择示例数据:</label>
+            <select id="example-select" onchange="loadSelectedExample()">
+                <option value="">请选择示例文件...</option>
+                <option value="/static/training_0_0.json">覆盖训练，不带标签</option>
+                <option value="/static/training_1_0.json">增量训练，不带标签</option>
+                <option value="/static/training_0_1.json">覆盖训练，带标签</option>
+                <option value="/static/training_1_1.json">增量训练，带标签</option>
+            </select>
+        
+
+            <label for="wafers">训练数据 (JSON格式):</label>
+            <textarea id="wafers" placeholder='请选择示例数据或直接输入训练数据的 JSON'></textarea>
+        </div>
+        
+        <button onclick="sendTrainRequest()">开始训练</button>
+        
+        <h2>训练结果:</h2>
+        <pre id="result">结果将显示在这里...</pre>
+    </div>
+    
+    <script>
+        function loadSelectedExample() {
+            const selectedFile = document.getElementById('example-select').value;
+            if (!selectedFile) {
+                document.getElementById('wafers').value = '';
+                return;
+            }
+
+            fetch(selectedFile)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('文件加载失败');
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    document.getElementById('wafers').value = text;
+                })
+                .catch(error => {
+                    document.getElementById('wafers').value = '加载示例文件失败: ' + error;
+                });
+        }
+
+        function sendTrainRequest() {
+            try {
+                const data = JSON.parse(document.getElementById('wafers').value);
+                
+                document.getElementById('result').textContent = '训练中...';
+                
+                fetch('/train', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    document.getElementById('result').textContent = '错误: ' + error;
+                });
+            } catch (error) {
+                document.getElementById('result').textContent = '错误: JSON格式不正确';
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,6 @@
+**.pdf
+*.tar
+**/data/
+**/log/
+**/__pycache__/
+**/models/classifier/

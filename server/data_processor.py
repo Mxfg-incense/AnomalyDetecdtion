@@ -50,10 +50,25 @@ class DataProcessor:
         """
         processed_data = []
         
+        # 统计 wafer ["label"] 的数量是否等于1 
+        set_labels = set(wafer["label"] for wafer in wafers if "label" in wafer)
+        if set_labels == {0} and training_mode == "0":
+            label_mode = "0"
+        elif set_labels == {1} and training_mode == "0":
+            raise ValueError("All wafer are labelled as abnormal, cannot be used for training.")
+            
+
         for wafer in wafers:
             # 确保时间和值的长度相同
 
             # 进行插值处理
+            assert len(wafer["processTime"]) == len(wafer["values"]), \
+            f"Time points and values must have the same length for wafer {wafer['WaferName']}"
+            
+            # 检查长度是否过短
+            if len(wafer["processTime"]) < 10:
+                raise ValueError(f"Wafer {wafer['WaferName']} has too few data points for training or prediction.")
+
             time_points = np.array(wafer["processTime"])
             values = np.array(wafer["values"])
             interpolated_values = self.interpolate_timeseries(time_points, values)
@@ -76,6 +91,8 @@ class DataProcessor:
                 continue
 
             # 处理已标记数据（全量增量训练模式）
+            if "label" not in wafer:
+                raise ValueError(f"Wafer {wafer['WaferName']} is missing label information.")
             processed_data.append({
                 "values": interpolated_values,
                 "label": wafer["label"]

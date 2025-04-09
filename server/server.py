@@ -36,6 +36,7 @@ def train():
         return jsonify(result)
         
     except Exception as e:
+        print("Error:", str(e))
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -63,7 +64,8 @@ def predict():
         logger.save_log(result, "prediction")
         return jsonify(result)
         
-    except ValueError as e:
+    except Exception as e:
+        print("Error:", str(e))
         return jsonify({
             'status': 'error',
             'message': str(e)

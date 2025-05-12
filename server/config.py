@@ -54,6 +54,8 @@ class Config:
             # 增量训练模式验证
             if config["trainingMode"] == "1" and config["labelMode"] == "0":
                 raise ValueError("Incremental training mode does not accept unlabelled data")
+        # replace the '/' with '_' in modelName
+        config["modelName"] = config["modelName"].replace("/", "_")
     
     @classmethod
     def get_default_model_name(cls, config):

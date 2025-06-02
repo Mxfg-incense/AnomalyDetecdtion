@@ -3,8 +3,10 @@ from config import Config
 from data_processor import DataProcessor
 from logger import Logger
 from model_manager import ModelManager
+import traceback
 
 app = Flask(__name__)
+# app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 
 # 初始化组件
 Config.ensure_directories()
@@ -18,8 +20,9 @@ def train():
     try:   
         config = request.get_json()
         Config.validate_config(config, "train")
+        result = {}
 
-        processed_data = data_processor.process_wafer_data(
+        processed_data, _ = data_processor.process_wafer_data(
             config["Wafers"], 
             config["trainingMode"], 
             config["labelMode"]
@@ -30,13 +33,12 @@ def train():
             f"{config['modelName']}_train.txt", 
             config["trainingMode"]
         )
-
-        result = model_manager.run_training(config)
+        result.update(model_manager.run_training(config))
         logger.save_log(result, "training")
         return jsonify(result)
         
     except Exception as e:
-        print("Error:", str(e))
+        print(f"Error in train: {str(e)}\n{traceback.format_exc()}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -48,24 +50,24 @@ def predict():
     try:
         config = request.get_json()
         Config.validate_config(config, "predict")
-
-        processed_data = data_processor.process_wafer_data(
+        result = {}
+        processed_data, result["timestep"] = data_processor.process_wafer_data(
             config["Wafers"], 
-            None, 
+            training_mode=None, 
             label_mode=config["labelMode"]
         )
 
-        result = model_manager.run_prediction(
+        result.update(model_manager.run_prediction(
             processed_data, 
             config["modelName"],
             config["labelMode"]
-        )
-        
+        ))
+
         logger.save_log(result, "prediction")
         return jsonify(result)
         
     except Exception as e:
-        print("Error:", str(e))
+        print(f"Error in predict: {str(e)}\n{traceback.format_exc()}")
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -96,4 +98,6 @@ def train_ui():
     return render_template('train.html')
 
 if __name__ == "__main__":
+    # app.config['PROFILE'] = True
+    # app.wsgi_app = ProfilerMiddleware(app.wsgi_app, restrictions=[30])
     app.run(host="0.0.0.0", port=5000, debug=True)
